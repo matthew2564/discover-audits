@@ -1,13 +1,6 @@
 const shell = require('shelljs');
+require('dotenv').config();
 
-const path = '/Users/matt/personal/node/discover-audits'; // asbolute path
-const org = 'dvsa'; //would be dvsa;
-const repos = [
-    'cvs-svc-test-results',
-    'cvs-svc-defects',
-    'cvs-svc-preparers',
-];
-const branch = 'develop';
 const reposToIntervene = [];
 let skipClone = false;
 
@@ -20,23 +13,28 @@ const cloneOrSkip = (repo) => {
         shell.exec(`rm -rf ${repo}`);
         // clone repo
         formatLog(`Cloning fresh copy of ${repo}`);
-        shell.exec(`git clone https://github.com/${org}/${repo} --progress`);
+        shell.exec(`git clone https://github.com/${process.env.ORG}/${repo} --progress`);
     } else {
         formatLog('Skipping clone stage');
     }
 }
 const gitActions = () => {
     shell.exec('git fetch');
-    shell.exec(`git checkout ${branch}`);
+    shell.exec(`git checkout ${process.env.BRANCH}`);
     shell.exec(`git pull --rebase`);
 }
 
-// Navigate to appropriate directory
-shell.cd(path);
+const startNextRepo = () => {
+    // go back to root
+    shell.exec('cd');
+    shell.cd(process.env.FILE_PATH);
+}
 
-// repos.forEach((repo) => {
-for (let i = 0; i < repos.length; i++) {
-    const repo = repos[i];
+// Navigate to appropriate directory
+shell.cd(process.env.FILE_PATH);
+
+for (let i = 0; i < JSON.parse(process.env.REPOS).length; i++) {
+    const repo = JSON.parse(process.env.REPOS)[i];
     // clone repo
     cloneOrSkip(repo);
 
@@ -45,7 +43,7 @@ for (let i = 0; i < repos.length; i++) {
     shell.cd(repo);
 
     // GIT actions
-    formatLog(`Checking out branch ${branch}`);
+    formatLog(`Checking out branch ${process.env.BRANCH}`);
     gitActions();
 
     // install dependencies
@@ -56,9 +54,7 @@ for (let i = 0; i < repos.length; i++) {
     let count = shell.exec(`npm audit --parseable | grep -E '(high|critical)' -c`);
     if (+count === 0) {
         formatLog('Ending early, no vulns detected');
-        // go back to root
-        shell.exec('cd');
-        shell.cd(path);
+        startNextRepo();
         continue;
     }
     formatLog(`${count} vulnerabilites found`);
@@ -67,19 +63,18 @@ for (let i = 0; i < repos.length; i++) {
     formatLog(`Running audit fix`);
     shell.exec('npm audit fix');
 
-    // count vulns
+    // count vulns after audit fix
     count = shell.exec(`npm audit --parseable | grep -E '(high|critical)' -c`);
     if (+count === 0) {
         // create PR
-        formatLog(`Creating PR for ${branch} against ${repo} ******`);
+        formatLog(`Creating PR for ${process.env.BRANCH} against ${repo} ******`);
 
     } else {
         reposToIntervene.push(repo);
         formatLog(`NOT ALL VULNS SORTED USING 'npm audit fix' for ${repo}`, 'error');
     }
-    // go back to root
-    shell.exec('cd');
-    shell.cd(path);
+
+    startNextRepo();
 };
 
 console.log('reposToIntervene', reposToIntervene);
