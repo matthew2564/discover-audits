@@ -8,11 +8,19 @@ These instructions will get you up and running with the neccessary tools in orde
  - Have brew installed: https://brew.sh/
  - Install Node via Terminal:
  - Install GitHub CLI via Terminal:
+ - Install Git-Secrets via Terminal:
  
  ```
 $ brew install node
+$ brew install git-secrets
 $ brew install gh       <-- To be used in future versions - not essential currently
  ```
+
+### Security
+  - [Git secrets](https://github.com/awslabs/git-secrets)
+  - [ScanRepo](https://github.com/UKHomeOffice/repo-security-scanner)
+    - latest version: scanrepo-0.4.0-darwin-amd64.tar.gz
+    - Add to path (using echo $PATH to find your path)
 
 ### Running the project
 This project will run on all versions of Node newer than and including 10
