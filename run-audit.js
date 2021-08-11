@@ -3,21 +3,20 @@ const shell = require('shelljs');
 const path = '/Users/matt/personal/node/discover-audits'; // asbolute path
 const org = 'dvsa'; //would be dvsa;
 const repos = [
-    // 'auth-connect-desktop',
     'cvs-svc-test-results',
+    'cvs-svc-defects',
+    'cvs-svc-preparers',
 ];
 const branch = 'develop';
 const reposToIntervene = [];
-let skipClone = true;
+let skipClone = false;
 
-const formatCount = (count) => (typeof count === 'string') ? Number(count.replace(/[^0-9]/g, '')) : 0;
 const formatLog = (log, level = 'log') => console[level](`****** ${log} ******`);
-const hasNoVulns = (critCount, highCount) => (formatCount(critCount) + formatCount(highCount)) === 0;
 
-const cloneOrSkip = () => {
+const cloneOrSkip = (repo) => {
     if (!skipClone) {
         // remove repo if exists
-        formatLog(`Clearing down ${repo}`);
+        formatLog(`Removing ${repo} if exists`);
         shell.exec(`rm -rf ${repo}`);
         // clone repo
         formatLog(`Cloning fresh copy of ${repo}`);
@@ -38,10 +37,9 @@ shell.cd(path);
 // repos.forEach((repo) => {
 for (let i = 0; i < repos.length; i++) {
     const repo = repos[i];
-
     // clone repo
-    cloneOrSkip();
-    
+    cloneOrSkip(repo);
+
     // navigate into repo
     formatLog(`Navigating to ${repo}`);
     shell.cd(repo);
@@ -55,22 +53,23 @@ for (let i = 0; i < repos.length; i++) {
     shell.exec('npm i --verbose');
 
     // count vulns
-    let critCount = shell.exec('npm audit | grep "Critical" -c').stdout;
-    let highCount = shell.exec('npm audit | grep "High" -c').stdout;
-    if (hasNoVulns(critCount, highCount)) {
+    let count = shell.exec(`npm audit --parseable | grep -E '(high|critical)' -c`);
+    if (+count === 0) {
         formatLog('Ending early, no vulns detected');
-        break;
+        // go back to root
+        shell.exec('cd');
+        shell.cd(path);
+        continue;
     }
+    formatLog(`${count} vulnerabilites found`);
 
     // audit fix
     formatLog(`Running audit fix`);
     shell.exec('npm audit fix');
-    
-    // count vulns
-    critCount = shell.exec('npm audit | grep "Critical" -c').stdout;
-    highCount = shell.exec('npm audit | grep "High" -c').stdout;
 
-    if (hasNoVulns(critCount, highCount)) {
+    // count vulns
+    count = shell.exec(`npm audit --parseable | grep -E '(high|critical)' -c`);
+    if (+count === 0) {
         // create PR
         formatLog(`Creating PR for ${branch} against ${repo} ******`);
 
@@ -78,6 +77,9 @@ for (let i = 0; i < repos.length; i++) {
         reposToIntervene.push(repo);
         formatLog(`NOT ALL VULNS SORTED USING 'npm audit fix' for ${repo}`, 'error');
     }
+    // go back to root
+    shell.exec('cd');
+    shell.cd(path);
 };
 
 console.log('reposToIntervene', reposToIntervene);
