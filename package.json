@@ -20,7 +20,7 @@
     "axios": "^0.21.1",
     "dotenv": "^10.0.0",
     "shelljs": "^0.8.4",
-    "simple-git": "^2.42.0"
+    "simple-git": "^3.5.0"
   },
   "devDependencies": {
     "husky": "^7.0.1",
